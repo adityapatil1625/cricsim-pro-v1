@@ -44,7 +44,7 @@ A production-ready multiplayer IPL auction and cricket simulation platform with 
 
 ### Multiplayer Features ✅
 - **Real-time Synchronization**: Socket.IO bidding, queue sync, state management
-- **Room System**: Create/join auction rooms with unique 6-digit codes
+- **Room System**: Create/join auction rooms with unique 5-character codes
 - **Host Controls**: Start auction, manage auction phases
 - **Bid History**: Track all bids with team names and amounts in real-time
 - **Auction Log**: Complete activity timeline with timestamps
@@ -87,7 +87,7 @@ A production-ready multiplayer IPL auction and cricket simulation platform with 
 ## Quick Start
 
 ### Prerequisites
-- Node.js 20.x or higher
+- Node.js 24.x or higher
 - npm 11.x or higher
 
 ### Windows Quick Launch

@@ -284,20 +284,20 @@ const AuctionRoom = ({
     if (!isOnline || !socket) return;
 
     const handleBidUpdate = (data) => {
-      const { bid, socketId, playerName } = data;
-      const bidderTeam = auctionTeams.find(t => t.id === socketId);
+      const { bid, teamId, playerName } = data;
+      const bidderTeam = auctionTeams.find(t => t.id === teamId);
       
       // Update bid state
       setCurrentBid(bid);
-      setCurrentBidder(socketId);
+      setCurrentBidder(teamId);
       setTimer(AUCTION_CONFIG.BID_TIMER);
       
       // Add to auction log
       addLog(
-        `💰 ${bidderTeam?.iplTeamId || socketId} bid ₹${bid}L for ${playerName}`,
+        `💰 ${bidderTeam?.iplTeamId || teamId} bid ₹${bid}L for ${playerName}`,
         'bid'
       );
-      console.log(`✅ Added bid to log: ${bidderTeam?.iplTeamId} bid ₹${bid}L`);
+      console.log(`✅ Added bid to log: ${bidderTeam?.iplTeamId || teamId} bid ₹${bid}L`);
     };
 
     socket.on('auctionBidUpdate', handleBidUpdate);

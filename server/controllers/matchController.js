@@ -1,6 +1,6 @@
 // server/controllers/matchController.js
 
-const { validateMatchState } = require("../utils/validation");
+const { validateMatchState, validateRoomCode } = require("../utils/validation");
 const { rooms, getOrCreateRoom, updateRoomActivity } = require("../utils/roomManager");
 
 /**
@@ -9,10 +9,28 @@ const { rooms, getOrCreateRoom, updateRoomActivity } = require("../utils/roomMan
 function handleMatchStateUpdate(socket, io) {
   socket.on("updateMatchState", (data) => {
     try {
-      const { roomCode, matchState } = data;
-      const room = getOrCreateRoom(roomCode);
+      if (socket.checkRateLimit) {
+        const rate = socket.checkRateLimit('matchStateUpdate');
+        if (!rate.allowed) {
+          return;
+        }
+      }
 
-      updateRoomActivity(roomCode);
+      const { roomCode, matchState } = data;
+      const codeValidation = validateRoomCode(roomCode);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in updateMatchState:`, codeValidation.error);
+        return;
+      }
+      const validation = validateMatchState(matchState);
+      if (!validation.valid) {
+        console.error(`❌ Invalid match state in ${codeValidation.code}:`, validation.error);
+        return;
+      }
+
+      const room = getOrCreateRoom(codeValidation.code);
+
+      updateRoomActivity(codeValidation.code);
 
       // Only update if this is a newer state (more balls bowled or match status changed)
       if (room.matchState) {
@@ -44,16 +62,16 @@ function handleMatchStateUpdate(socket, io) {
         );
       }
 
-      room.matchState = matchState;
+      room.matchState = validation.matchState;
 
       // Broadcast to all players in room
-      io.to(roomCode).emit("matchStateUpdated", {
-        roomCode,
-        matchState,
+      io.to(codeValidation.code).emit("matchStateUpdated", {
+        roomCode: codeValidation.code,
+        matchState: validation.matchState,
       });
 
       console.log(
-        `📊 Match state updated in ${roomCode} - Score: ${matchState.score}/${matchState.wickets}, Balls: ${matchState.ballsBowled}`
+        `📊 Match state updated in ${codeValidation.code} - Score: ${validation.matchState.score}/${validation.matchState.wickets}, Balls: ${validation.matchState.ballsBowled}`
       );
     } catch (error) {
       console.error("❌ Error in updateMatchState:", error);
@@ -68,12 +86,17 @@ function handleTossResult(socket, io) {
   socket.on("tossResult", (data) => {
     try {
       const { code, winner, choice } = data;
-      const room = rooms.get(code);
+      const codeValidation = validateRoomCode(code);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in tossResult:`, codeValidation.error);
+        return;
+      }
+      const room = rooms.get(codeValidation.code);
 
       if (!room) return;
 
-      console.log(`🪙 Toss result in ${code}: ${winner} won and chose to ${choice}`);
-      io.to(code).emit("tossResultBroadcast", { winner, choice });
+      console.log(`🪙 Toss result in ${codeValidation.code}: ${winner} won and chose to ${choice}`);
+      io.to(codeValidation.code).emit("tossResultBroadcast", { winner, choice });
     } catch (error) {
       console.error("❌ Error in tossResult:", error);
     }
@@ -87,12 +110,17 @@ function handleInningsBreak(socket, io) {
   socket.on("inningsBreak", (data) => {
     try {
       const { code } = data;
-      const room = rooms.get(code);
+      const codeValidation = validateRoomCode(code);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in inningsBreak:`, codeValidation.error);
+        return;
+      }
+      const room = rooms.get(codeValidation.code);
 
       if (!room) return;
 
-      console.log(`🔄 Innings break in ${code}`);
-      io.to(code).emit("inningsBreakBroadcast");
+      console.log(`🔄 Innings break in ${codeValidation.code}`);
+      io.to(codeValidation.code).emit("inningsBreakBroadcast");
     } catch (error) {
       console.error("❌ Error in inningsBreak:", error);
     }
@@ -106,12 +134,17 @@ function handleMatchEnd(socket, io) {
   socket.on("matchEnd", (data) => {
     try {
       const { code, result } = data;
-      const room = rooms.get(code);
+      const codeValidation = validateRoomCode(code);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in matchEnd:`, codeValidation.error);
+        return;
+      }
+      const room = rooms.get(codeValidation.code);
 
       if (!room) return;
 
-      console.log(`🏁 Match ended in ${code}:`, result);
-      io.to(code).emit("matchEndBroadcast", { result });
+      console.log(`🏁 Match ended in ${codeValidation.code}:`, result);
+      io.to(codeValidation.code).emit("matchEndBroadcast", { result });
     } catch (error) {
       console.error("❌ Error in matchEnd:", error);
     }

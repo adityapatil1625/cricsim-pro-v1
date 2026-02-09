@@ -22,6 +22,19 @@ const {
 function handleCreateRoom(socket, io) {
   socket.on("createRoom", async (data, callback) => {
     try {
+      if (socket.checkRateLimit) {
+        const rate = socket.checkRateLimit('createRoom');
+        if (!rate.allowed) {
+          if (callback) {
+            callback({
+              success: false,
+              error: `Rate limited. Retry after ${rate.retryAfterMs}ms`,
+            });
+          }
+          return;
+        }
+      }
+
       // Validate input
       const modeValidation = validateGameMode(data?.mode || "1v1");
       if (!modeValidation.valid) {
@@ -88,6 +101,19 @@ function handleCreateRoom(socket, io) {
 function handleJoinRoom(socket, io) {
   socket.on("joinRoom", async (data, callback) => {
     try {
+      if (socket.checkRateLimit) {
+        const rate = socket.checkRateLimit('joinRoom');
+        if (!rate.allowed) {
+          if (callback) {
+            callback({
+              success: false,
+              error: `Rate limited. Retry after ${rate.retryAfterMs}ms`,
+            });
+          }
+          return;
+        }
+      }
+
       // Validate room code
       const codeValidation = validateRoomCode(data?.code);
       if (!codeValidation.valid) {
@@ -235,10 +261,23 @@ function handleNavigation(socket, io) {
  */
 function handleTeamSelection(socket, io) {
   socket.on("selectIPLTeam", ({ code, teamId }) => {
+    if (socket.checkRateLimit) {
+      const rate = socket.checkRateLimit('playerSelect');
+      if (!rate.allowed) {
+        return;
+      }
+    }
+
+    const codeValidation = validateRoomCode(code);
+    if (!codeValidation.valid) {
+      console.error(`❌ Invalid room code in selectIPLTeam:`, codeValidation.error);
+      return;
+    }
+
     console.log(`🏟️  Received selectIPLTeam: code=${code}, teamId=${teamId}, socketId=${socket.id}`);
-    const room = rooms.get(code);
+    const room = rooms.get(codeValidation.code);
     if (!room) {
-      console.error(`❌ Room not found: ${code}`);
+      console.error(`❌ Room not found: ${codeValidation.code}`);
       return;
     }
 
@@ -252,9 +291,9 @@ function handleTeamSelection(socket, io) {
       }
       console.log(`✅ Updated player ${player.name}: ${oldTeam || "None"} → ${player.iplTeam || "None"}`);
       console.log(`📢 Room ${code} team selection status:`, room.players.map(p => ({ name: p.name, team: p.iplTeam })));
-      io.to(code).emit("roomUpdate", room);
+      io.to(codeValidation.code).emit("roomUpdate", room);
     } else {
-      console.error(`❌ Player not found: ${socket.id} in room ${code}`);
+      console.error(`❌ Player not found: ${socket.id} in room ${codeValidation.code}`);
     }
   });
 }
@@ -264,29 +303,41 @@ function handleTeamSelection(socket, io) {
  */
 function handlePlayerReady(socket, io) {
   socket.on("playerReady", (data) => {
-    console.log(`🟢 Received playerReady: roomCode=${data.roomCode}, socketId=${data.socketId}`);
-    const room = rooms.get(data.roomCode);
-    if (!room) {
-      console.error(`❌ Room not found for playerReady: ${data.roomCode}`);
+    const codeValidation = validateRoomCode(data.roomCode);
+    if (!codeValidation.valid) {
+      console.error(`❌ Invalid room code in playerReady:`, codeValidation.error);
       return;
     }
 
-    io.to(data.roomCode).emit("playerReady", {
-      roomCode: data.roomCode,
+    console.log(`🟢 Received playerReady: roomCode=${codeValidation.code}, socketId=${data.socketId}`);
+    const room = rooms.get(codeValidation.code);
+    if (!room) {
+      console.error(`❌ Room not found for playerReady: ${codeValidation.code}`);
+      return;
+    }
+
+    io.to(codeValidation.code).emit("playerReady", {
+      roomCode: codeValidation.code,
       socketId: data.socketId
     });
   });
 
   socket.on("matchEntryReady", (data) => {
-    console.log(`🎮 Received matchEntryReady: roomCode=${data.roomCode}, fixtureId=${data.fixtureId}, socketId=${data.socketId}`);
-    const room = rooms.get(data.roomCode);
-    if (!room) {
-      console.error(`❌ Room not found for matchEntryReady: ${data.roomCode}`);
+    const codeValidation = validateRoomCode(data.roomCode);
+    if (!codeValidation.valid) {
+      console.error(`❌ Invalid room code in matchEntryReady:`, codeValidation.error);
       return;
     }
 
-    io.to(data.roomCode).emit("matchEntryReady", {
-      roomCode: data.roomCode,
+    console.log(`🎮 Received matchEntryReady: roomCode=${codeValidation.code}, fixtureId=${data.fixtureId}, socketId=${data.socketId}`);
+    const room = rooms.get(codeValidation.code);
+    if (!room) {
+      console.error(`❌ Room not found for matchEntryReady: ${codeValidation.code}`);
+      return;
+    }
+
+    io.to(codeValidation.code).emit("matchEntryReady", {
+      roomCode: codeValidation.code,
       fixtureId: data.fixtureId,
       socketId: data.socketId
     });

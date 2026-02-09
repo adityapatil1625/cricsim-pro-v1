@@ -26,15 +26,15 @@ import { Plus } from './Icons';
  *   onAdd={() => addPlayerToTeam(playerObj)} 
  * />
  */
-const PlayerCard = ({ player, onAdd }) => (
-    <div className="glass-card rounded-lg p-3 flex items-center justify-between gap-3 cursor-pointer group hover:bg-slate-800/50 border-l-2 border-transparent hover:border-l-brand-gold">
+const PlayerCard = ({ player, onAdd, compact = false }) => (
+    <div className={`glass-card rounded-lg ${compact ? 'p-2' : 'p-3'} flex items-center justify-between gap-3 cursor-pointer group hover:bg-slate-800/50 border-l-2 border-transparent hover:border-l-brand-gold`}>
         <div className="flex flex-col min-w-0 flex-1">
             <div className="flex items-center justify-between">
-                <h4 className="font-bold text-slate-100 text-base truncate pr-2 font-broadcast tracking-wide text-lg">
+                <h4 className={`font-bold text-slate-100 truncate pr-2 font-broadcast tracking-wide ${compact ? 'text-sm' : 'text-lg'}`}>
                     {player.name}
                 </h4>
                 <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border ${
+                    className={`${compact ? 'text-[9px] px-1.5' : 'text-[10px] px-2'} py-0.5 rounded uppercase tracking-wider border font-bold ${
                         player.role === 'Bat'
                             ? 'border-blue-500/50 text-blue-400 bg-blue-500/10'
                             : player.role === 'Bowl'
@@ -45,7 +45,7 @@ const PlayerCard = ({ player, onAdd }) => (
           {player.role}
         </span>
             </div>
-            <div className="flex gap-4 text-xs text-slate-400 font-mono mt-1">
+            <div className={`flex ${compact ? 'gap-2 text-[10px]' : 'gap-4 text-xs'} text-slate-400 font-mono mt-1`}>
         <span>
           Avg: <span className="text-white">{player.avg}</span>
         </span>
@@ -65,9 +65,9 @@ const PlayerCard = ({ player, onAdd }) => (
                     e.stopPropagation();
                     onAdd(player);
                 }}
-                className="bg-white/5 hover:bg-green-600 text-white p-2 rounded-lg transition-all hover:scale-110 border border-white/10"
+                className={`bg-white/5 hover:bg-green-600 text-white ${compact ? 'p-1.5' : 'p-2'} rounded-lg transition-all hover:scale-110 border border-white/10`}
             >
-                <Plus size={16} />
+                <Plus size={compact ? 14 : 16} />
             </button>
         )}
     </div>

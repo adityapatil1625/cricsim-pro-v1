@@ -7,7 +7,7 @@ import { processIPLData } from "../../data/cricketProcessing";
 
 const API_BASE = import.meta.env.VITE_BACKEND_URL || "http://localhost:4000";
 
-const PlayerSearch = ({ activeTeam, onAddPlayer }) => {
+const PlayerSearch = ({ activeTeam, onAddPlayer, density = "default" }) => {
     const [localPlayers, setLocalPlayers] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
@@ -285,6 +285,8 @@ const PlayerSearch = ({ activeTeam, onAddPlayer }) => {
         ? searchResults
         : [];
 
+    const isCompact = density === "compact";
+
     // Small status pill based on remoteStatus
     const renderApiStatus = () => {
         if (remoteStatus === "loading") {
@@ -322,13 +324,13 @@ const PlayerSearch = ({ activeTeam, onAddPlayer }) => {
         <div className="h-full flex flex-col glass-panel rounded-3xl p-1 overflow-hidden">
             <div className="flex flex-col h-full bg-slate-950/40 rounded-[20px] overflow-hidden">
                 {/* Header */}
-                <div className="p-6 border-b border-white/5 flex-shrink-0">
-                    <div className="flex justify-between items-start mb-6">
+                <div className={`${isCompact ? 'p-3' : 'p-6'} border-b border-white/5 flex-shrink-0`}>
+                    <div className={`flex justify-between items-start ${isCompact ? 'mb-3' : 'mb-6'}`}>
                         <div>
-                            <h3 className="font-broadcast text-4xl text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">
+                            <h3 className={`font-broadcast text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 ${isCompact ? 'text-2xl' : 'text-4xl'}`}>
                                 Auction Pool
                             </h3>
-                            <div className="flex items-center gap-2 text-xs text-slate-400 uppercase tracking-widest mt-1">
+                            <div className={`flex items-center gap-2 text-slate-400 uppercase tracking-widest mt-1 ${isCompact ? 'text-[10px]' : 'text-xs'}`}>
                                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                                 Local + Live Search • {totalPlayers} Base Players
                                 {activeTeam && (
@@ -352,11 +354,11 @@ const PlayerSearch = ({ activeTeam, onAddPlayer }) => {
                             {/* Search box */}
                             <div className="relative group">
                                 <Search
-                                    className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-brand-gold transition-colors"
-                                    size={18}
+                                    className={`absolute left-4 ${isCompact ? 'top-2.5' : 'top-3.5'} text-slate-500 group-focus-within:text-brand-gold transition-colors`}
+                                    size={isCompact ? 16 : 18}
                                 />
                                 <input
-                                    className="bg-black/30 border border-white/10 rounded-full py-3 pl-12 pr-6 text-sm w-64 text-white focus:outline-none focus:border-brand-gold transition-all placeholder-slate-600"
+                                    className={`bg-black/30 border border-white/10 rounded-full ${isCompact ? 'py-2' : 'py-3'} pl-12 pr-6 ${isCompact ? 'text-xs' : 'text-sm'} ${isCompact ? 'w-48' : 'w-64'} text-white focus:outline-none focus:border-brand-gold transition-all placeholder-slate-600`}
                                     placeholder="Search Player..."
                                     value={searchQuery}
                                     onChange={(e) =>
@@ -375,7 +377,7 @@ const PlayerSearch = ({ activeTeam, onAddPlayer }) => {
                             />
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="bg-slate-800 hover:bg-slate-700 text-brand-gold px-6 rounded-full border border-slate-700 hover:border-brand-gold/30 transition-all text-xs font-bold uppercase tracking-wider"
+                                className={`bg-slate-800 hover:bg-slate-700 text-brand-gold ${isCompact ? 'px-3 py-1.5 text-[10px]' : 'px-6 text-xs'} rounded-full border border-slate-700 hover:border-brand-gold/30 transition-all font-bold uppercase tracking-wider`}
                             >
                                 Import JSON
                             </button>
@@ -386,7 +388,7 @@ const PlayerSearch = ({ activeTeam, onAddPlayer }) => {
                     <div className="flex gap-2">
                         <button
                             onClick={() => setSelectedRole("all")}
-                            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
+                            className={`${isCompact ? 'px-2 py-1 text-[10px]' : 'px-4 py-2 text-xs'} rounded-full font-bold uppercase tracking-wider transition-all ${
                                 selectedRole === "all"
                                     ? "bg-brand-gold/20 text-brand-gold border border-brand-gold/50"
                                     : "bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700"
@@ -396,7 +398,7 @@ const PlayerSearch = ({ activeTeam, onAddPlayer }) => {
                         </button>
                         <button
                             onClick={() => setSelectedRole("batter")}
-                            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
+                            className={`${isCompact ? 'px-2 py-1 text-[10px]' : 'px-4 py-2 text-xs'} rounded-full font-bold uppercase tracking-wider transition-all ${
                                 selectedRole === "batter"
                                     ? "bg-blue-500/20 text-blue-400 border border-blue-500/50"
                                     : "bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700"
@@ -406,7 +408,7 @@ const PlayerSearch = ({ activeTeam, onAddPlayer }) => {
                         </button>
                         <button
                             onClick={() => setSelectedRole("bowler")}
-                            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
+                            className={`${isCompact ? 'px-2 py-1 text-[10px]' : 'px-4 py-2 text-xs'} rounded-full font-bold uppercase tracking-wider transition-all ${
                                 selectedRole === "bowler"
                                     ? "bg-red-500/20 text-red-400 border border-red-500/50"
                                     : "bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700"
@@ -416,7 +418,7 @@ const PlayerSearch = ({ activeTeam, onAddPlayer }) => {
                         </button>
                         <button
                             onClick={() => setSelectedRole("allrounder")}
-                            className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
+                            className={`${isCompact ? 'px-2 py-1 text-[10px]' : 'px-4 py-2 text-xs'} rounded-full font-bold uppercase tracking-wider transition-all ${
                                 selectedRole === "allrounder"
                                     ? "bg-purple-500/20 text-purple-400 border border-purple-500/50"
                                     : "bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 border border-slate-700"
@@ -429,7 +431,7 @@ const PlayerSearch = ({ activeTeam, onAddPlayer }) => {
 
                 {/* Player list - this scrolls */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
-                    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+                    <div className={`${isCompact ? 'p-2 md:p-3 space-y-2' : 'p-4 md:p-6 space-y-4 md:space-y-6'}`}>
                         {resultsToShow.length === 0 ? (
                             <div className="text-slate-500 text-xs md:text-sm italic">
                                 No players match the search. Try a different name
@@ -463,18 +465,19 @@ const PlayerSearch = ({ activeTeam, onAddPlayer }) => {
                                 if (players.length === 0) return null;
                                 return (
                                   <div key={title}>
-                                    <div className="sticky top-0 bg-slate-950/80 backdrop-blur-sm py-2 md:py-3 mb-3 md:mb-4 border-b border-white/5">
-                                      <h4 className="font-broadcast text-sm md:text-lg text-brand-gold flex items-center gap-2">
+                                                                        <div className={`sticky top-0 bg-slate-950/80 backdrop-blur-sm border-b border-white/5 ${isCompact ? 'py-1.5 mb-2' : 'py-2 md:py-3 mb-3 md:mb-4'}`}>
+                                                                            <h4 className={`font-broadcast text-brand-gold flex items-center gap-2 ${isCompact ? 'text-xs' : 'text-sm md:text-lg'}`}>
                                         <span>{emoji}</span> {title}
-                                        <span className="text-xs text-slate-500 font-normal ml-auto">{players.length} players</span>
+                                                                                <span className={`${isCompact ? 'text-[10px]' : 'text-xs'} text-slate-500 font-normal ml-auto`}>{players.length} players</span>
                                       </h4>
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2 gap-2 md:gap-4">
+                                                                        <div className={`${isCompact ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 2xl:grid-cols-3 gap-2' : 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2 gap-2 md:gap-4'}`}>
                                       {players.map((p) => (
                                         <PlayerCard
                                           key={p.id}
                                           player={p}
                                           onAdd={handleAddClick}
+                                                                                    compact={isCompact}
                                         />
                                       ))}
                                     </div>

@@ -86,10 +86,10 @@ const QuickSetupPage = ({
       <div className="relative z-10 w-full px-3 sm:px-4 lg:px-8 py-3 sm:py-4 lg:py-6 flex flex-col gap-3 sm:gap-4 border-b border-white/5 bg-slate-950/80 backdrop-blur-sm flex-shrink-0">
         <div className="flex flex-col sm:flex-row justify-between sm:items-end gap-3">
           <div>
-            <h1 className="text-3xl sm:text-4xl lg:text-6xl font-broadcast text-white leading-none drop-shadow-lg">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-broadcast text-white leading-none drop-shadow-lg">
               SQUAD SELECTION
             </h1>
-            <p className="text-slate-400 uppercase tracking-widest text-[10px] sm:text-xs lg:text-sm ml-1 mt-1 sm:mt-2">
+            <p className="text-slate-400 uppercase tracking-widest text-[9px] sm:text-[10px] lg:text-xs ml-1 mt-1">
               Build your playing XIs
             </p>
           </div>
@@ -198,7 +198,11 @@ const QuickSetupPage = ({
       <div className="relative z-10 flex-1 flex flex-col lg:flex-row p-2 sm:p-4 lg:p-6 gap-2 sm:gap-4 lg:gap-6 min-h-0 overflow-hidden">
         {/* Left side - Player Pool */}
         <div className="w-full lg:flex-1 flex flex-col min-h-0 h-auto lg:h-full min-w-0 order-2 lg:order-1">
-          <PlayerSearch activeTeam={activeTeamSelect} onAddPlayer={handleAddToActiveTeam} />
+          <PlayerSearch
+            activeTeam={activeTeamSelect}
+            onAddPlayer={handleAddToActiveTeam}
+            density="compact"
+          />
           {!activeTeamSelect && (
             <div className="mt-2 sm:mt-4 p-2 sm:p-4 bg-blue-900/30 border border-blue-700 rounded-lg text-center">
               <p className="text-blue-300 text-[10px] sm:text-xs lg:text-sm font-semibold">👈 Select a team on the right to add players</p>

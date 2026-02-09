@@ -28,6 +28,13 @@ function handleStartAuction(socket, io) {
 function handleAuctionBid(socket, io) {
   socket.on("auctionBid", (data) => {
     try {
+      if (socket.checkRateLimit) {
+        const rate = socket.checkRateLimit('bid');
+        if (!rate.allowed) {
+          return;
+        }
+      }
+
       // Validate room code
       const codeValidation = validateRoomCode(data?.code);
       if (!codeValidation.valid) {
@@ -51,6 +58,12 @@ function handleAuctionBid(socket, io) {
 
       if (!room) {
         console.log(`❌ Room ${code} not found for auctionBid`);
+        return;
+      }
+
+      const isRoomMember = room.players?.some((player) => player.socketId === socket.id);
+      if (!isRoomMember) {
+        console.log(`⚠️  Socket ${socket.id} is not a member of room ${code}`);
         return;
       }
 
@@ -80,18 +93,23 @@ function handleAuctionQueueSync(socket, io) {
   socket.on("auctionQueueSync", (data) => {
     try {
       const { code, queue } = data;
-      const room = rooms.get(code);
+      const codeValidation = validateRoomCode(code);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in auctionQueueSync:`, codeValidation.error);
+        return;
+      }
+      const room = rooms.get(codeValidation.code);
 
       if (!room) return;
 
       // Only host can sync auction queue
       if (room.host !== socket.id) {
-        console.log(`⚠️  Non-host ${socket.id} tried to sync queue in ${code}`);
+        console.log(`⚠️  Non-host ${socket.id} tried to sync queue in ${codeValidation.code}`);
         return;
       }
 
-      console.log(`📋 Auction queue synced in ${code}: ${queue?.length || 0} players`);
-      io.to(code).emit("auctionQueueSynced", { queue });
+      console.log(`📋 Auction queue synced in ${codeValidation.code}: ${queue?.length || 0} players`);
+      io.to(codeValidation.code).emit("auctionQueueSync", { queue });
     } catch (error) {
       console.error("❌ Error in auctionQueueSync:", error);
     }
@@ -104,15 +122,55 @@ function handleAuctionQueueSync(socket, io) {
 function handleAuctionPlayerSold(socket, io) {
   socket.on("auctionPlayerSold", (data) => {
     try {
-      const { code, player, teamId, amount } = data;
-      const room = rooms.get(code);
+      const { code, player, teamId, price, amount, soldPrice } = data;
+      const codeValidation = validateRoomCode(code);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in auctionPlayerSold:`, codeValidation.error);
+        return;
+      }
+      const room = rooms.get(codeValidation.code);
 
       if (!room) return;
 
-      console.log(`✅ Player sold in ${code}: ${player?.name} to ${teamId} for ₹${amount}L`);
-      io.to(code).emit("auctionPlayerSoldBroadcast", { player, teamId, amount });
+      if (room.host !== socket.id) {
+        console.log(`⚠️  Non-host ${socket.id} tried to mark player sold in ${codeValidation.code}`);
+        return;
+      }
+
+      const finalPrice = price ?? amount ?? soldPrice ?? 0;
+      console.log(`✅ Player sold in ${codeValidation.code}: ${player?.name} to ${teamId} for ₹${finalPrice}L`);
+      io.to(codeValidation.code).emit("auctionPlayerSold", { player, teamId, price: finalPrice });
     } catch (error) {
       console.error("❌ Error in auctionPlayerSold:", error);
+    }
+  });
+}
+
+/**
+ * Handle auction player unsold
+ */
+function handleAuctionPlayerUnsold(socket, io) {
+  socket.on("auctionPlayerUnsold", (data) => {
+    try {
+      const { code, player } = data;
+      const codeValidation = validateRoomCode(code);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in auctionPlayerUnsold:`, codeValidation.error);
+        return;
+      }
+      const room = rooms.get(codeValidation.code);
+
+      if (!room) return;
+
+      if (room.host !== socket.id) {
+        console.log(`⚠️  Non-host ${socket.id} tried to mark player unsold in ${codeValidation.code}`);
+        return;
+      }
+
+      console.log(`❌ Player unsold in ${codeValidation.code}: ${player?.name}`);
+      io.to(codeValidation.code).emit("auctionPlayerUnsold", { player });
+    } catch (error) {
+      console.error("❌ Error in auctionPlayerUnsold:", error);
     }
   });
 }
@@ -124,12 +182,22 @@ function handleAuctionTeamsUpdate(socket, io) {
   socket.on("auctionTeamsUpdate", (data) => {
     try {
       const { code, teams } = data;
-      const room = rooms.get(code);
+      const codeValidation = validateRoomCode(code);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in auctionTeamsUpdate:`, codeValidation.error);
+        return;
+      }
+      const room = rooms.get(codeValidation.code);
 
       if (!room) return;
 
-      console.log(`📊 Auction teams updated in ${code}`);
-      io.to(code).emit("auctionTeamsUpdateBroadcast", { teams });
+      if (room.host !== socket.id) {
+        console.log(`⚠️  Non-host ${socket.id} tried to update teams in ${codeValidation.code}`);
+        return;
+      }
+
+      console.log(`📊 Auction teams updated in ${codeValidation.code}`);
+      io.to(codeValidation.code).emit("auctionTeamsUpdateBroadcast", { teams });
     } catch (error) {
       console.error("❌ Error in auctionTeamsUpdate:", error);
     }
@@ -143,11 +211,21 @@ function handleAuctionLogUpdate(socket, io) {
   socket.on("auctionLogUpdate", (data) => {
     try {
       const { code, logEntry } = data;
-      const room = rooms.get(code);
+      const codeValidation = validateRoomCode(code);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in auctionLogUpdate:`, codeValidation.error);
+        return;
+      }
+      const room = rooms.get(codeValidation.code);
 
       if (!room) return;
 
-      io.to(code).emit("auctionLogUpdateBroadcast", { logEntry });
+      if (room.host !== socket.id) {
+        console.log(`⚠️  Non-host ${socket.id} tried to update log in ${codeValidation.code}`);
+        return;
+      }
+
+      io.to(codeValidation.code).emit("auctionLogUpdateBroadcast", { logEntry });
     } catch (error) {
       console.error("❌ Error in auctionLogUpdate:", error);
     }
@@ -162,6 +240,7 @@ function initializeAuctionHandlers(socket, io) {
   handleAuctionBid(socket, io);
   handleAuctionQueueSync(socket, io);
   handleAuctionPlayerSold(socket, io);
+  handleAuctionPlayerUnsold(socket, io);
   handleAuctionTeamsUpdate(socket, io);
   handleAuctionLogUpdate(socket, io);
 }

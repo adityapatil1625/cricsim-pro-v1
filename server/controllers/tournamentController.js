@@ -1,6 +1,6 @@
 // server/controllers/tournamentController.js
 
-const { validateTeamPlayers } = require("../utils/validation");
+const { validateTeamPlayers, validateRoomCode } = require("../utils/validation");
 const { rooms, userSockets } = require("../utils/roomManager");
 
 /**
@@ -9,14 +9,39 @@ const { rooms, userSockets } = require("../utils/roomManager");
 function handleTeamSetup(socket, io) {
   socket.on("updateTeamPlayers", (data, callback) => {
     try {
+      if (socket.checkRateLimit) {
+        const rate = socket.checkRateLimit('playerSelect');
+        if (!rate.allowed) {
+          if (callback) {
+            callback({
+              success: false,
+              error: `Rate limited. Retry after ${rate.retryAfterMs}ms`,
+            });
+          }
+          return;
+        }
+      }
+
       const { roomCode, teamPlayers } = data;
-      const room = rooms.get(roomCode);
+      const codeValidation = validateRoomCode(roomCode);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in updateTeamPlayers:`, codeValidation.error);
+        if (callback) callback({ success: false, error: codeValidation.error });
+        return;
+      }
+      const room = rooms.get(codeValidation.code);
       const userInfo = userSockets.get(socket.id);
 
-      console.log(`📥 Received updateTeamPlayers from ${socket.id} in room ${roomCode}`);
+      console.log(`📥 Received updateTeamPlayers from ${socket.id} in room ${codeValidation.code}`);
 
       if (!userInfo) {
         console.log(`❌ User ${socket.id} not found in userSockets`);
+        if (callback) callback({ success: false, error: "User not in room" });
+        return;
+      }
+
+      if (userInfo.roomCode !== codeValidation.code) {
+        console.log(`⚠️  User ${socket.id} not in room ${codeValidation.code}`);
         if (callback) callback({ success: false, error: "User not in room" });
         return;
       }
@@ -32,7 +57,7 @@ function handleTeamSetup(socket, io) {
       const player = room.players.find((p) => p.socketId === socket.id);
       if (player) {
         player.teamPlayers = validation.players;
-        player.isReady = true;
+        player.isReady = validation.players.length === 11;
 
         console.log(
           `✅ 🏏 Player ${player.name} marked READY with ${validation.players.length} players`
@@ -42,9 +67,9 @@ function handleTeamSetup(socket, io) {
           callback({ success: true });
         }
 
-        io.to(roomCode).emit("roomUpdate", room);
+        io.to(codeValidation.code).emit("roomUpdate", room);
       } else {
-        console.log(`❌ Player with socket ${socket.id} not found in room ${roomCode}`);
+        console.log(`❌ Player with socket ${socket.id} not found in room ${codeValidation.code}`);
         if (callback) callback({ success: false, error: "Player not found" });
       }
     } catch (error) {
@@ -62,13 +87,30 @@ function handleTeamSetup(socket, io) {
 function handleTournamentTeamUpdate(socket, io) {
   socket.on("tournamentTeamUpdate", (data) => {
     try {
+      if (socket.checkRateLimit) {
+        const rate = socket.checkRateLimit('playerSelect');
+        if (!rate.allowed) {
+          return;
+        }
+      }
+
       const { code, teams } = data;
-      const room = rooms.get(code);
+      const codeValidation = validateRoomCode(code);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in tournamentTeamUpdate:`, codeValidation.error);
+        return;
+      }
+      const room = rooms.get(codeValidation.code);
 
       if (!room) return;
 
-      // Find the sending player and update their team players
       const senderPlayer = room.players.find(p => p.socketId === socket.id);
+      if (!senderPlayer) {
+        console.log(`⚠️  Socket ${socket.id} not found in room ${codeValidation.code}`);
+        return;
+      }
+
+      // Find the sending player and update their team players
       if (senderPlayer && teams.length > 0) {
         const theirTeam = teams[0];
         if (theirTeam.id === senderPlayer.side) {
@@ -79,7 +121,7 @@ function handleTournamentTeamUpdate(socket, io) {
       }
 
       // Broadcast team update to all players in room
-      io.to(code).emit("tournamentTeamUpdate", { teams });
+      io.to(codeValidation.code).emit("tournamentTeamUpdate", { teams });
     } catch (error) {
       console.error("❌ Error in tournamentTeamUpdate:", error);
     }
@@ -93,7 +135,13 @@ function handleGenerateFixtures(socket, io) {
   socket.on("generateTournamentFixtures", (data, callback) => {
     try {
       const { code } = data;
-      const room = rooms.get(code);
+      const codeValidation = validateRoomCode(code);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in generateTournamentFixtures:`, codeValidation.error);
+        if (callback) callback({ success: false, error: codeValidation.error });
+        return;
+      }
+      const room = rooms.get(codeValidation.code);
 
       if (!room || room.host !== socket.id) {
         console.log(`❌ Only host can generate fixtures`);
@@ -114,7 +162,7 @@ function handleGenerateFixtures(socket, io) {
         const errorMsg = `Not all players have selected 11 players. Incomplete: ${incompleteNames}`;
         console.log(`❌ ${errorMsg}`);
         if (callback) callback({ success: false, error: errorMsg });
-        io.to(code).emit("tournamentStartError", { error: errorMsg });
+        io.to(codeValidation.code).emit("tournamentStartError", { error: errorMsg });
         return;
       }
 
@@ -138,13 +186,13 @@ function handleGenerateFixtures(socket, io) {
         }
       }
 
-      console.log(`🏆 Generated ${fixtures.length} fixtures for room ${code}`);
+      console.log(`🏆 Generated ${fixtures.length} fixtures for room ${codeValidation.code}`);
 
       if (callback) {
         callback({ success: true, fixtureCount: fixtures.length });
       }
 
-      io.to(code).emit("tournamentFixturesGenerated", { fixtures });
+      io.to(codeValidation.code).emit("tournamentFixturesGenerated", { fixtures });
     } catch (error) {
       console.error("❌ Error in generateTournamentFixtures:", error);
       if (callback) {
@@ -161,7 +209,12 @@ function handleTournamentResultsUpdate(socket, io) {
   socket.on("tournamentResultsUpdate", (data) => {
     try {
       const { code, fixtures, tournTeams, phase } = data;
-      const room = rooms.get(code);
+      const codeValidation = validateRoomCode(code);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in tournamentResultsUpdate:`, codeValidation.error);
+        return;
+      }
+      const room = rooms.get(codeValidation.code);
 
       // Only host can broadcast tournament results
       if (!room || room.host !== socket.id) {
@@ -170,14 +223,14 @@ function handleTournamentResultsUpdate(socket, io) {
       }
 
       // Broadcast updated tournament data to ALL players in room
-      io.to(code).emit("tournamentResultsUpdate", {
+      io.to(codeValidation.code).emit("tournamentResultsUpdate", {
         fixtures,
         tournTeams,
         phase,
         timestamp: Date.now(),
       });
 
-      console.log(`📊 Tournament results updated and broadcast to room ${code}`);
+      console.log(`📊 Tournament results updated and broadcast to room ${codeValidation.code}`);
       console.log(`   Fixtures: ${fixtures?.length || 0}, Teams: ${tournTeams?.length || 0}, Phase: ${phase}`);
     } catch (error) {
       console.error("❌ Error in tournamentResultsUpdate:", error);

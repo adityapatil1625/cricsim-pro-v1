@@ -144,7 +144,7 @@ const validateMatchState = (matchState) => {
     return { valid: false, error: 'Invalid score value' };
   }
   
-  if (typeof matchState.wickets !== 'number' || matchState.wickets < 0 || matchState.wickets > 11) {
+  if (typeof matchState.wickets !== 'number' || matchState.wickets < 0 || matchState.wickets > 10) {
     return { valid: false, error: 'Invalid wickets value' };
   }
   

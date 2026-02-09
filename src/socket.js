@@ -15,7 +15,6 @@ export const socket = io(SERVER_URL, {
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     reconnectionAttempts: 5,
-    reconnectionDelayMax: 5000,
 });
 
 socket.on("connect", () => {
