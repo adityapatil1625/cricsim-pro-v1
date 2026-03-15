@@ -139,7 +139,8 @@ function handleAuctionPlayerSold(socket, io) {
 
       const finalPrice = price ?? amount ?? soldPrice ?? 0;
       console.log(`✅ Player sold in ${codeValidation.code}: ${player?.name} to ${teamId} for ₹${finalPrice}L`);
-      io.to(codeValidation.code).emit("auctionPlayerSold", { player, teamId, price: finalPrice });
+      // Broadcast to everyone EXCEPT the host who already processed it locally
+      socket.broadcast.to(codeValidation.code).emit("auctionPlayerSold", { player, teamId, price: finalPrice });
     } catch (error) {
       console.error("❌ Error in auctionPlayerSold:", error);
     }
@@ -168,7 +169,8 @@ function handleAuctionPlayerUnsold(socket, io) {
       }
 
       console.log(`❌ Player unsold in ${codeValidation.code}: ${player?.name}`);
-      io.to(codeValidation.code).emit("auctionPlayerUnsold", { player });
+      // Broadcast to everyone EXCEPT the host who already processed it locally
+      socket.broadcast.to(codeValidation.code).emit("auctionPlayerUnsold", { player });
     } catch (error) {
       console.error("❌ Error in auctionPlayerUnsold:", error);
     }

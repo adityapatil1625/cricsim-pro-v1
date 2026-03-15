@@ -290,7 +290,6 @@ const AuctionRoom = ({
       // Update bid state
       setCurrentBid(bid);
       setCurrentBidder(teamId);
-      setTimer(AUCTION_CONFIG.BID_TIMER);
       
       // Add to auction log
       addLog(
@@ -300,12 +299,14 @@ const AuctionRoom = ({
       console.log(`✅ Added bid to log: ${bidderTeam?.iplTeamId || teamId} bid ₹${bid}L`);
     };
 
-    socket.on('auctionBidUpdate', handleBidUpdate);
+    socket.on('auctionBidUpdate', handleBidU, isHostpdate);
 
     return () => {
       socket.off('auctionBidUpdate', handleBidUpdate);
     };
   }, [isOnline, socket, auctionTeams, addLog]);
+
+
 
   // Listen for queue sync from server (online mode)
   useEffect(() => {
@@ -349,6 +350,7 @@ const AuctionRoom = ({
   }, [isOnline, socket]);
 
   // Listen for sold/unsold player events from host (online mode)
+  // Host won't receive these because server uses socket.broadcast
   useEffect(() => {
     if (!isOnline || !socket) return;
 
@@ -392,11 +394,6 @@ const AuctionRoom = ({
         })
       );
       
-      addLog(
-        `✅ ${player.name} (${player.role || 'player'}) sold for ₹${price}L to ${soldTeam?.iplTeamId || teamId}`,
-        'sold'
-      );
-      
       // Show sold overlay to all guests
       setLastSoldPlayer({ player, teamId, price });
       setShowSoldOverlay(true);
@@ -421,8 +418,6 @@ const AuctionRoom = ({
       
       // Add to unsold list
       setUnsold(prev => [...prev, player]);
-      
-      addLog(`❌ ${player.name} - UNSOLD`, 'unsold');
       
       // Clear bidding state so next player can be bid on immediately
       setCurrentBidder(null);
@@ -463,7 +458,7 @@ const AuctionRoom = ({
       setBasePrice(nextPlayer.basePrice || 0);
       setCurrentBidder(null);
       setBiddingStage('PLAYER_ANNOUNCED');
-      setTimer(AUCTION_CONFIG.BID_TIMER);
+      setTimer(AUCTION_CONFIG.BID_TIMER)
       
       addLog(
         `📍 ${nextPlayer.name} is up for auction - Base price ₹${nextPlayer.basePrice || 0}L`,
@@ -485,6 +480,10 @@ const AuctionRoom = ({
       // Mark player as sold for visual feedback
       setLastSoldPlayer({ player, teamId, price });
       setShowSoldOverlay(true);
+
+      // Clear bidder so the same team can bid on the next player
+      setCurrentBidder(null);
+      setBiddingStage('PLAYER_ANNOUNCED');
 
       // Rapid confetti bursts
       const burstConfetti = () => {
@@ -592,6 +591,10 @@ const AuctionRoom = ({
   const handleUnsoldPlayer = useCallback((player) => {
     // Mark as processed to prevent duplicate calls
     setPlayerProcessed(true);
+
+    // Reset bidder state for the next player
+    setCurrentBidder(null);
+    setBiddingStage('PLAYER_ANNOUNCED');
     
     setUnsold(prev => [...prev, player]);
     addLog(`❌ ${player.name} - UNSOLD`, 'unsold');
@@ -609,7 +612,7 @@ const AuctionRoom = ({
     setTimeout(() => {
       setCurrentPlayer(null);
     }, 500);
-  }, [isOnline, socket, onlineRoom]);
+  }, [isOnline, socket, onlineRoom, addLog]);
 
   // Handle bid placement
   const handlePlaceBid = useCallback(() => {
@@ -661,6 +664,9 @@ const AuctionRoom = ({
       });
     }
   }, [isOnline, currentPlayer, currentBid, myTeamId, socket, onlineRoom, auctionTeams, biddingStage]);
+
+
+
   // Calculate next bid amount
   const getNextBidAmount = () => {
     const increment = getBidIncrement(currentBid);
@@ -702,7 +708,7 @@ const AuctionRoom = ({
 
   if (auctionPhase === 'initializing') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="h-full flex items-center justify-center bg-slate-950">
         <div className="flex flex-col items-center gap-4">
           <div className="w-8 h-8 border-4 border-brand-gold border-t-transparent rounded-full animate-spin" />
           <p className="text-slate-400">Initializing auction...</p>
@@ -713,7 +719,7 @@ const AuctionRoom = ({
 
   if (auctionPhase === 'ready') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 relative overflow-hidden p-4">
+      <div className="h-full flex flex-col items-center justify-center bg-slate-950 relative overflow-hidden p-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-950 to-slate-950" />
 
         <div className="relative z-10 glass-panel rounded-3xl p-8 w-full max-w-4xl bg-slate-950/80 text-center">
@@ -776,7 +782,7 @@ const AuctionRoom = ({
 
   if (auctionPhase === 'completed') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 relative overflow-hidden p-4">
+      <div className="h-full flex flex-col items-center justify-center bg-slate-950 relative overflow-hidden p-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-950 to-slate-950" />
 
         <div className="relative z-10 glass-panel rounded-3xl p-8 w-full max-w-4xl bg-slate-950/80 text-center">
@@ -825,7 +831,7 @@ const AuctionRoom = ({
   // Show loading screen while waiting for first player to be announced
   if (auctionPhase === 'running' && !currentPlayer) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 relative overflow-hidden p-4">
+      <div className="h-full flex flex-col items-center justify-center bg-slate-950 relative overflow-hidden p-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-950 to-slate-950" />
         
         <div className="relative z-10 glass-panel rounded-3xl p-8 w-full max-w-2xl bg-slate-950/80 text-center">
@@ -848,7 +854,7 @@ const AuctionRoom = ({
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 relative overflow-hidden">
+    <div className="h-full flex flex-col bg-slate-950 relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-950 to-slate-950" />
 
       <div className="relative z-10 flex-1 flex flex-col max-w-full">
@@ -900,11 +906,9 @@ const AuctionRoom = ({
             </div>
           </div>
         </div>
-        {/* MAIN AUCTION LAYOUT */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 sm:p-6 overflow-hidden">
-          {/* CENTER: PLAYER CARD & BIDDING - Full width on mobile, 1 column on desktop */}
-          <div className="lg:col-span-2 flex flex-col gap-3 h-full overflow-hidden">
-            {currentPlayer && (
+        {/* MAIN AUCTION CONTENT */}
+        <div className="flex-1 flex flex-col gap-3 p-4 sm:p-6 overflow-hidden">
+          {currentPlayer && (
               <>
                 {/* TIMER & SET BOX - Side by side, equal width */}
                 <div className="grid grid-cols-2 gap-3 flex-shrink-0">
@@ -1062,10 +1066,7 @@ const AuctionRoom = ({
                 </div>
               </>
             )}
-          </div>
         </div>
-
-        {/* FOOTER REMOVED - Now in AuctionAnalytics component */}
       </div>
     </div>
   );
