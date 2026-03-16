@@ -117,6 +117,66 @@ function handleAuctionQueueSync(socket, io) {
 }
 
 /**
+ * Handle host announcing next auction player
+ */
+function handleAuctionNextPlayer(socket, io) {
+  socket.on("auctionNextPlayer", (data) => {
+    try {
+      const { code, player } = data || {};
+      const codeValidation = validateRoomCode(code);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in auctionNextPlayer:`, codeValidation.error);
+        return;
+      }
+
+      const room = rooms.get(codeValidation.code);
+      if (!room) return;
+
+      if (room.host !== socket.id) {
+        console.log(`⚠️  Non-host ${socket.id} tried to announce next player in ${codeValidation.code}`);
+        return;
+      }
+
+      socket.broadcast
+        .to(codeValidation.code)
+        .emit("auctionNextPlayer", { player });
+    } catch (error) {
+      console.error("❌ Error in auctionNextPlayer:", error);
+    }
+  });
+}
+
+/**
+ * Handle host timer updates during auction
+ */
+function handleAuctionTimerUpdate(socket, io) {
+  socket.on("auctionTimerUpdate", (data) => {
+    try {
+      const { code, timer, playerName } = data || {};
+      const codeValidation = validateRoomCode(code);
+      if (!codeValidation.valid) {
+        console.error(`❌ Invalid room code in auctionTimerUpdate:`, codeValidation.error);
+        return;
+      }
+
+      const room = rooms.get(codeValidation.code);
+      if (!room) return;
+
+      if (room.host !== socket.id) {
+        console.log(`⚠️  Non-host ${socket.id} tried to emit timer update in ${codeValidation.code}`);
+        return;
+      }
+
+      socket.broadcast
+        .to(codeValidation.code)
+        .emit("auctionTimerUpdate", { timer, playerName });
+    } catch (error) {
+      console.error("❌ Error in auctionTimerUpdate:", error);
+    }
+  });
+}
+
+/**
  * Handle auction player sold
  */
 function handleAuctionPlayerSold(socket, io) {
@@ -241,6 +301,8 @@ function initializeAuctionHandlers(socket, io) {
   handleStartAuction(socket, io);
   handleAuctionBid(socket, io);
   handleAuctionQueueSync(socket, io);
+  handleAuctionNextPlayer(socket, io);
+  handleAuctionTimerUpdate(socket, io);
   handleAuctionPlayerSold(socket, io);
   handleAuctionPlayerUnsold(socket, io);
   handleAuctionTeamsUpdate(socket, io);

@@ -272,12 +272,12 @@ const AuctionRoom = ({
   }, [auctionPhase, currentPlayer, playerProcessed, isOnline, isHost, socket, onlineRoom]);
 
   // Add log entry - moved before useEffects that need it
-  const addLog = (message, type = 'info') => {
+  const addLog = useCallback((message, type = 'info') => {
     setAuctionLog(prev => [
       { message, type, timestamp: new Date() },
       ...prev.slice(0, 99),
     ]);
-  };
+  }, []);
 
   // Listen for bid updates from other players (online mode)
   useEffect(() => {
@@ -347,7 +347,7 @@ const AuctionRoom = ({
     return () => {
       socket.off('auctionQueueSync', handleQueueSync);
     };
-  }, [isOnline, socket]);
+  }, [isOnline, socket, addLog, currentPlayer?.name]);
 
   // Listen for sold/unsold player events from host (online mode)
   // Host won't receive these because server uses socket.broadcast
@@ -584,7 +584,7 @@ const AuctionRoom = ({
         setCurrentPlayer(null);
       }, 3500);
     },
-    [auctionTeams]
+    [auctionTeams, isOnline, onlineRoom, socket, addLog]
   );
 
   // Handle player unsold
@@ -663,7 +663,7 @@ const AuctionRoom = ({
         teamId: myTeamId,
       });
     }
-  }, [isOnline, currentPlayer, currentBid, myTeamId, socket, onlineRoom, auctionTeams, biddingStage]);
+  }, [isOnline, currentPlayer, myTeamId, socket, onlineRoom, auctionTeams, biddingStage, onBidPlaced, addLog]);
 
 
 

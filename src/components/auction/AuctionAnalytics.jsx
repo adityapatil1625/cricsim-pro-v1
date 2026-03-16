@@ -26,6 +26,7 @@ const AuctionAnalytics = ({ teams = [], soldPlayers = [], currentPlayer = null, 
       const actualPurse = t.purse !== undefined ? t.purse : AUCTION_CONFIG.TOTAL_PURSE;
       return {
         ...t,
+        purse: actualPurse,
         totalSpend: AUCTION_CONFIG.TOTAL_PURSE - actualPurse,
       };
     });
@@ -53,7 +54,10 @@ const AuctionAnalytics = ({ teams = [], soldPlayers = [], currentPlayer = null, 
   };
 
   const getTotalRemainingPurse = () => {
-    return teams.reduce((sum, t) => sum + (t.purse || 0), 0);
+    return teams.reduce(
+      (sum, t) => sum + (t.purse !== undefined ? t.purse : AUCTION_CONFIG.TOTAL_PURSE),
+      0
+    );
   };
 
   const getOverseasPlayersCount = () => {
