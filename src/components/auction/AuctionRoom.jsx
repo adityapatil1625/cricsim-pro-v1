@@ -299,7 +299,7 @@ const AuctionRoom = ({
       console.log(`✅ Added bid to log: ${bidderTeam?.iplTeamId || teamId} bid ₹${bid}L`);
     };
 
-    socket.on('auctionBidUpdate', handleBidU, isHostpdate);
+    socket.on('auctionBidUpdate', handleBidUpdate);
 
     return () => {
       socket.off('auctionBidUpdate', handleBidUpdate);
